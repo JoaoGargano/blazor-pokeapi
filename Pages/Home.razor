@@ -1,0 +1,88 @@
+@page "/"
+@using BlazorPokeApi.Models
+@using System.Globalization
+@inject HttpClient Http
+
+<PageTitle>Buscar Pokémon</PageTitle>
+
+<h1>Buscar Pokémon</h1>
+
+<div class="form-group mb-2">
+    <label for="nomePokemon">Nome do Pokémon:</label>
+    <input type="text" class="form-control" id="nomePokemon" @bind="nomePokemon" placeholder="Ex: pikachu, ditto, charizard..." />
+</div>
+
+<button class="btn btn-primary mb-4" @onclick="BuscarPokemon">Buscar Pokémon</button>
+
+@if (carregando)
+{
+    <p><em>Carregando dados do Pokémon...</em></p>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3">
+        @errorMessage
+    </div>
+}
+else if (pokemon != null)
+{
+    <h3>Detalhes do Pokémon</h3>
+
+    @if (!string.IsNullOrEmpty(pokemon.Sprites?.Other?.OfficialArtwork?.FrontDefault))
+    {
+        <div class="mb-3">
+            <img src="@pokemon.Sprites.Other.OfficialArtwork.FrontDefault" alt="@pokemon.Name" style="max-width: 180px;" />
+        </div>
+    }
+
+    <p class="mb-1"><strong>ID:</strong> @pokemon.Id</p>
+    <p class="mb-1"><strong>Nome:</strong> @pokemon.Name</p>
+    <p class="mb-1"><strong>Altura:</strong> @((pokemon.Height / 10.0).ToString("0.#", new CultureInfo("pt-BR"))) m</p>
+    <p class="mb-1"><strong>Peso:</strong> @((pokemon.Weight / 10.0).ToString("0.#", new CultureInfo("pt-BR"))) kg</p>
+}
+
+@code {
+    private string? nomePokemon;
+    private Pokemon? pokemon;
+    private string? errorMessage;
+    private bool carregando = false;
+
+    private async Task BuscarPokemon()
+    {
+        errorMessage = string.Empty;
+        pokemon = null;
+
+        if (string.IsNullOrWhiteSpace(nomePokemon))
+        {
+            errorMessage = "Por favor, digite o nome de um Pokémon.";
+            return;
+        }
+
+        carregando = true;
+
+        try
+        {
+            string parametro = nomePokemon.Trim().ToLower();
+            string url = $"https://pokeapi.co/api/v2/pokemon/{parametro}";
+
+            pokemon = await Http.GetFromJsonAsync<Pokemon>(url);
+
+            if (pokemon == null)
+            {
+                errorMessage = "Pokémon não encontrado.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = $"Pokémon '{nomePokemon}' não encontrado na API. Verifique a grafia e tente novamente.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ocorreu um erro ao consultar a API: {ex.Message}";
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+}
